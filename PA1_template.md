@@ -19,7 +19,8 @@ output: html_document
 
 The required libraries are first loaded.
 
-```{r init}
+
+```r
 library("data.table")  # improved dataframe
 library("ggplot2")  # data viz
 library("lubridate") # simplifies date manipulation
@@ -29,7 +30,8 @@ library("lubridate") # simplifies date manipulation
 
 The data is first loaded directly from the `.zip` file without unzipping (using the `unz()` function). Missing variables are coded appropriately as `NA` and the `lubridate` function `ymd()` is used to convert the dates to the appropriate type.
 
-```{r loading_data}
+
+```r
 DF <- read.csv("activity.csv", na.strings="NA")
 DF$date <- ymd(DF$date)
 DT <- data.table(DF)
@@ -38,8 +40,18 @@ setkey(DT, interval)  # to make a later merge easier
 
 The structure of the datatable is verified:
 
-```{r check_structure}
+
+```r
 str(DT)
+```
+
+```
+## Classes 'data.table' and 'data.frame':	17568 obs. of  3 variables:
+##  $ steps   : int  NA 0 0 47 0 0 0 NA 0 34 ...
+##  $ date    : Date, format: "2012-10-01" "2012-10-02" ...
+##  $ interval: int  0 0 0 0 0 0 0 0 0 0 ...
+##  - attr(*, ".internal.selfref")=<externalptr> 
+##  - attr(*, "sorted")= chr "interval"
 ```
 
 We have 17568 observations of three variables, as specified in the assignment. The three variables are of the right class and represent the following (quoting again from the assignment):
@@ -55,16 +67,33 @@ A new datatable is created with two columns:
 - **date**: The date on which the measurement was taken in POSIXct format
 - **total_steps**: the total number of steps recorded for the day, ignoring missing values.
 
-```{r total_steps_per_day}
+
+```r
 DT_total_steps <- DT[,sum(steps, na.rm=TRUE),by=date]
 setnames(DT_total_steps, c("date", "total_steps"))
 head(DT_total_steps)  # quick peek at top rows to check all is well
 ```
 
+```
+##          date total_steps
+## 1: 2012-10-01           0
+## 2: 2012-10-02         126
+## 3: 2012-10-03       11352
+## 4: 2012-10-04       12116
+## 5: 2012-10-05       13294
+## 6: 2012-10-06       15420
+```
+
 ### Calculating Mean and Median Number of steps
 
-```{r summary_steps}
+
+```r
 summary(DT_total_steps[,total_steps])
+```
+
+```
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##       0    6778   10400    9354   12810   21190
 ```
 
 - **Mean**: 9354 steps per day
@@ -72,14 +101,25 @@ summary(DT_total_steps[,total_steps])
 
 ### Visualizing Total steps
 
-```{r histogram_total_steps}
+
+```r
 p <- ggplot(DT_total_steps, aes(total_steps))
 p <- p + geom_bar(fill="steelblue", binwidth=500) 
+```
+
+```
+## Warning: `geom_bar()` no longer has a `binwidth` parameter. Please use
+## `geom_histogram()` instead.
+```
+
+```r
 p <- p + geom_rug()
 p <- p + xlab("Total steps per day") + ylab("Frequency")
 p <- p + ggtitle("Frequency Distribution of Total Steps per Day")
 p
 ```
+
+![plot of chunk histogram_total_steps](figure/histogram_total_steps-1.png)
 
 For added visual cue on the distribution of the individual values, a `geom_rug()` is added on the x-axis. 
 
@@ -92,13 +132,25 @@ A new datatable is created with two columns:
 - **interval**: Identifier for the 5-minute interval in which measurement was taken
 - **average_steps**: the average number of steps recorded for the interval, ignoring missing values.
 
-```{r average_steps_per_day}
+
+```r
 DT_mean_steps <- DT[,mean(steps, na.rm=TRUE),by=interval]
 setnames(DT_mean_steps, c("interval", "mean_steps"))
 head(DT_mean_steps)  # quick peek at top rows to check all is well
 ```
 
-```{r time_series_mean_steps}
+```
+##    interval mean_steps
+## 1:        0  1.7169811
+## 2:        5  0.3396226
+## 3:       10  0.1320755
+## 4:       15  0.1509434
+## 5:       20  0.0754717
+## 6:       25  2.0943396
+```
+
+
+```r
 p <- ggplot(DT_mean_steps, aes(x=interval, y=mean_steps))
 p <- p + geom_line(colour="steelblue")
 p <- p + xlab("Interval") + ylab("Mean Steps")
@@ -111,14 +163,25 @@ p <- p + annotate("point", x = 835, y = 206.1698,
 p
 ```
 
+![plot of chunk time_series_mean_steps](figure/time_series_mean_steps-1.png)
+
 The peak activity is annotated on the graph. The point of maximal activity is calculated below.
 
 ### Point of Maximum Activity
 
 The 5-minute interval, on average across all the days in the dataset, containing the maximum number of steps is identified:
 
-```{r max_average_activity}
+
+```r
 DT_mean_steps[mean_steps==max(mean_steps)]
+```
+
+```
+##    interval mean_steps
+## 1:      835   206.1698
+```
+
+```r
 setkey(DT_mean_steps, interval)  # to make a later merge easier
 ```
 
@@ -128,8 +191,13 @@ The highest average number of steps is 206.170 recorded in the **5-minute interv
 
 > **Step 1**: Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
 
-```{r number_missing}
+
+```r
 sum(is.na(DT))
+```
+
+```
+## [1] 2304
 ```
 
 **There are 2304 rows with missing data.**
@@ -145,7 +213,8 @@ The strategy to be adopted is to replace missing values of steps with the mean a
 
 > **Step 3**: Create a new dataset that is equal to the original dataset but with the missing data filled in.
 
-```{r impute_missing_steps}
+
+```r
 mDT <- DT[DT_mean_steps] # join two data tables keyed by interval
 mDT$steps <- as.numeric(mDT$steps) # convert steps to correct type
 # replace missing steps with corresponding mean value
@@ -154,27 +223,55 @@ mDT$steps[is.na(mDT$steps)] <- mDT[is.na(mDT$steps), mean_steps]
 
 > **Step 4**: Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
 
-```{r imputed_total_steps_per_day}
+
+```r
 mDT_total_steps <- mDT[,sum(steps),by=date]
 setnames(mDT_total_steps, c("date", "total_steps"))
 head(mDT_total_steps)  # quick peek at top rows to check all is well
 ```
 
-```{r imputed_summary_steps}
+```
+##          date total_steps
+## 1: 2012-10-01    10766.19
+## 2: 2012-10-02      126.00
+## 3: 2012-10-03    11352.00
+## 4: 2012-10-04    12116.00
+## 5: 2012-10-05    13294.00
+## 6: 2012-10-06    15420.00
+```
+
+
+```r
 summary(mDT_total_steps[,total_steps])
+```
+
+```
+##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+##      41    9819   10770   10770   12810   21190
 ```
 
 - **Updated Mean**: 10770 steps per day
 - **Updated Median**: 10770 steps per day
 
-```{r histogram_imputed_total_steps}
+
+```r
 p <- ggplot(mDT_total_steps, aes(total_steps))
 p <- p + geom_bar(fill="steelblue", binwidth=500) 
+```
+
+```
+## Warning: `geom_bar()` no longer has a `binwidth` parameter. Please use
+## `geom_histogram()` instead.
+```
+
+```r
 p <- p + geom_rug()
 p <- p + xlab("Total steps per day") + ylab("Frequency")
 p <- p + ggtitle("Frequency Distribution of Total Steps per Day")
 p
 ```
+
+![plot of chunk histogram_imputed_total_steps](figure/histogram_imputed_total_steps-1.png)
 
 ### Effect of Imputing Missing Values
 
@@ -184,7 +281,8 @@ The effect of imputing a value for all missing observations of steps has shifted
 
 First, a new datatable is created with a new column, `weekday`, that is a factor variable with two levels: `weekday` and `weekend` depending on whether that particular day is a Saturday or Sunday (weekend) or not (weekday),
 
-```{r weekday}
+
+```r
 ## Use lubridate wday() to check if the date is 
 ## a Sun or Sat, wday == 1 or 7 respectively
 mDT[,weekday:=(wday(date)>1 & wday(date)<7)]
@@ -195,19 +293,34 @@ mDT$weekday <- as.factor(mDT$weekday)
 str(mDT) # check structure to see if all OK
 ```
 
+```
+## Classes 'data.table' and 'data.frame':	17568 obs. of  5 variables:
+##  $ steps     : num  1.72 0 0 47 0 ...
+##  $ date      : Date, format: "2012-10-01" "2012-10-02" ...
+##  $ interval  : int  0 0 0 0 0 0 0 0 0 0 ...
+##  $ mean_steps: num  1.72 1.72 1.72 1.72 1.72 ...
+##  $ weekday   : Factor w/ 2 levels "weekday","weekend": 1 1 1 1 1 2 2 1 1 1 ...
+##  - attr(*, "sorted")= chr "interval"
+##  - attr(*, ".internal.selfref")=<externalptr>
+```
+
 Next, extract a further datatable which has the mean number of steps calculated by interval number and by weekday factor.
-```{r factor_mean_steps}
+
+```r
 mDT_mean_steps <- mDT[,mean(steps),by=c("weekday","interval")]
 setnames(mDT_mean_steps,c("weekday","interval","steps"))
 ```
 
 Finally, create a figure with two panels, one for weekday and one for weekends.
 
-```{r panel_plot}
+
+```r
 p <- ggplot(mDT_mean_steps, aes(x=interval, y=steps), )
 p <- p + geom_line(colour="steelblue") + facet_grid(weekday ~ .)
 p <- p + xlab("Interval") + ylab("Number of steps")
 p
 ```
+
+![plot of chunk panel_plot](figure/panel_plot-1.png)
 
 Over the weekend, activity is more evenly extended during the day, while on weekdays this individual is mostly active in the early part of the day. This would be consistent with diminished numbers of steps during working hours and more exercise before work and over weekends.
